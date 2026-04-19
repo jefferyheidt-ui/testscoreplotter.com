@@ -239,15 +239,16 @@ function redraw(){
   dots=[];
   stacks.forEach(g=>{
     const mx=g.reduce((a,s)=>a+s.px,0)/g.length;
+    const step=sAbbr?SSTEP*2.8:SSTEP;
     g.forEach((s,si)=>{
-      const cy=BL-DR-(si*SSTEP);
+      const cy=BL-DR-(si*step);
       shp(ctx,s.s,mx,cy,DR,s.c);
       if(sAbbr){
         ctx.save();
         ctx.font='bold 8px Arial';
-        ctx.fillStyle='#222';
         ctx.textAlign='center';
-        ctx.fillText(s.a||abb(s.l), mx, cy-DR-2);
+        ctx.fillStyle='#222';
+        ctx.fillText(s.a||abb(s.l), mx, cy-DR-3);
         ctx.restore();
       }
       dots.push({...s,cx:mx,cy});
