@@ -72,13 +72,14 @@ const TYPES={'Standard (SS)':{mean:100,sd:15},'IQ':{mean:100,sd:15},'Scaled':{me
 
 // SLD-specific domains — same dark color, maximally distinct shapes for B&W printing
 const DOM={
-  'Basic Reading':          {c:'#222', s:'circle'   },
-  'Reading Fluency':        {c:'#222', s:'square'   },
-  'Total Reading':          {c:'#222', s:'diamond'  },
-  'Math Calculation':       {c:'#222', s:'triUp'    },
-  'Math Problem Solving':   {c:'#222', s:'triDown'  },
-  'Total Math':             {c:'#222', s:'cross'    },
-  'Written Expression':     {c:'#222', s:'star'     },
+  'Basic Reading':          {c:'#222', s:'circle'  },
+  'Reading Fluency':        {c:'#222', s:'square'  },
+  'Reading Comprehension':  {c:'#222', s:'diamond' },
+  'Total Reading':          {c:'#222', s:'triDown' },
+  'Math Calculation':       {c:'#222', s:'triUp'   },
+  'Math Problem Solving':   {c:'#222', s:'cross'   },
+  'Total Math':             {c:'#222', s:'star'    },
+  'Written Expression':     {c:'#222', s:'pent'    },
 };
 
 const BANDS=[{lo:-1,hi:1,f:'rgba(55,138,221,0.42)'},{lo:-2,hi:-1,f:'rgba(180,178,169,0.32)'},{lo:1,hi:2,f:'rgba(180,178,169,0.32)'},{lo:-3,hi:-2,f:'rgba(0,0,0,0)'},{lo:2,hi:3,f:'rgba(0,0,0,0)'},{lo:-4,hi:-3,f:'rgba(216,90,48,0.22)'},{lo:3,hi:4,f:'rgba(99,153,34,0.22)'}];
