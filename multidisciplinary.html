@@ -63,7 +63,7 @@ label{font-size:12px;color:#555;display:flex;align-items:center;gap:4px;cursor:p
 </table>
 <script>
 const TYPES={'Standard (SS)':{mean:100,sd:15},'IQ':{mean:100,sd:15},'Scaled':{mean:10,sd:3},'T-score':{mean:50,sd:10},'Percentile':null,'Stanine':{mean:5,sd:2},'NCE':{mean:50,sd:21.06}};
-const DOM={'Cognitive':{c:'#222',s:'circle'},'Reading':{c:'#222',s:'square'},'Writing':{c:'#222',s:'diamond'},'Math':{c:'#222',s:'triUp'},'Speech/Language':{c:'#222',s:'triDown'},'OT/Motor':{c:'#222',s:'cross'},'Social-Emotional':{c:'#222',s:'star'},'Executive Functioning':{c:'#222',s:'pent'}};
+const DOM={'Cognitive':{c:'#222',s:'circle'},'Reading':{c:'#222',s:'square'},'Writing':{c:'#222',s:'diamond'},'Math':{c:'#222',s:'triUp'},'Speech/Language':{c:'#222',s:'triDown'},'OT/Motor':{c:'#222',s:'cross'}};
 const BANDS=[{lo:-1,hi:1,f:'rgba(55,138,221,0.42)'},{lo:-2,hi:-1,f:'rgba(180,178,169,0.32)'},{lo:1,hi:2,f:'rgba(180,178,169,0.32)'},{lo:-3,hi:-2,f:'rgba(0,0,0,0)'},{lo:2,hi:3,f:'rgba(0,0,0,0)'},{lo:-4,hi:-3,f:'rgba(216,90,48,0.22)'},{lo:3,hi:4,f:'rgba(99,153,34,0.22)'}];
 const CLS=[{lo:-4,hi:-2,l:'Extremely Low'},{lo:-2,hi:-1.33,l:'Borderline'},{lo:-1.33,hi:-0.67,l:'Low Average'},{lo:-0.67,hi:0.67,l:'Average'},{lo:0.67,hi:1.33,l:'High Average'},{lo:1.33,hi:2,l:'Superior'},{lo:2,hi:4,l:'Very Superior'}];
 const PCTM=[{p:7,lbl:'7th %ile',id:'pct7',c:'#000',pos:'left'},{p:12,lbl:'12th %ile',id:'pct12',c:'#000',pos:'above'},{p:null,z:-2,lbl:'SS 70',id:'ss70',c:'#000',pos:'above'}];
@@ -232,9 +232,7 @@ addRow('Math Reasoning','MR','Math','Standard (SS)','91');
 addRow('Articulation','AR','Speech/Language','Standard (SS)','95');
 addRow('Language','LG','Speech/Language','Standard (SS)','79');
 addRow('Fine Motor','FM','OT/Motor','Scaled','6');
-addRow('Emotion Reg','ER','Social-Emotional','T-score','65');
-addRow('Inhibition','IN','Executive Functioning','Standard (SS)','82');
-addRow('Cognitive Flex','CF','Executive Functioning','Standard (SS)','77');
+
 redraw();
 window.addEventListener('resize',redraw);
 </script>
