@@ -65,9 +65,15 @@ nav {
 /* ── Hero ── */
 .hero {
   background: linear-gradient(160deg, #f0f7ff 0%, #e8f5ee 100%);
-  padding: 5rem 2rem 4rem;
-  text-align: center;
+  padding: 3.5rem 2rem;
 }
+.hero-inner {
+  display: flex; align-items: center; gap: 3rem;
+  max-width: 1100px; margin: 0 auto;
+  flex-wrap: wrap;
+}
+.hero-text { flex: 1; min-width: 280px; }
+.hero-preview { flex: 1.2; min-width: 300px; background: #fff; border-radius: 16px; border: 1px solid #E5E7EB; padding: 1rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); position: relative; }
 .hero-badge {
   display: inline-block;
   background: var(--teal-lt); color: var(--teal);
@@ -78,18 +84,19 @@ nav {
 }
 .hero h1 {
   font-family: 'Source Serif 4', serif;
-  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
   font-weight: 600; line-height: 1.2;
   color: var(--gray-800);
-  max-width: 700px; margin: 0 auto 1rem;
+  margin-bottom: 1rem;
 }
 .hero h1 em { font-style: italic; color: var(--blue); }
 .hero p {
-  font-size: 1.1rem; color: var(--gray-600);
-  max-width: 560px; margin: 0 auto 2rem;
-  font-weight: 400;
+  font-size: 1rem; color: var(--gray-600);
+  margin-bottom: 2rem;
+  font-weight: 400; line-height: 1.7;
 }
-.hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+@media (max-width: 700px) { .hero-inner { flex-direction: column; } .hero-preview { width: 100%; } }
 .btn-primary {
   background: var(--blue); color: var(--white);
   padding: 13px 28px; border-radius: var(--radius);
@@ -236,12 +243,21 @@ footer a:hover { color: var(--white); }
 </nav>
 
 <section class="hero">
-  <div class="hero-badge">Free for educators</div>
-  <h1>Visualize assessment scores on a <em>normal curve</em> — instantly</h1>
-  <p>Free interactive plotting tools built for school psychologists, SLPs, and special education teams. Plot any score type, see where it falls, and print a clean B&amp;W chart for your IEP team.</p>
-  <div class="hero-actions">
-    <a href="#tools" class="btn-primary">Explore the tools</a>
-    <a href="#features" class="btn-secondary">See what's included</a>
+  <div class="hero-inner">
+    <div class="hero-text">
+      <div class="hero-badge">Free for educators</div>
+      <h1>Visualize assessment scores on a <em>normal curve</em> — instantly</h1>
+      <p>Free interactive plotting tools built for school psychologists, SLPs, and special education teams. Plot any score type, see where it falls, and print a clean B&amp;W chart for your IEP team.</p>
+      <div class="hero-actions">
+        <a href="#tools" class="btn-primary">Explore the tools</a>
+        <a href="#features" class="btn-secondary">See what's included</a>
+      </div>
+    </div>
+    <div class="hero-preview">
+      <canvas id="heroCv"></canvas>
+      <div id="heroTip" style="position:absolute;background:#fff;border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:11px;color:#222;pointer-events:none;display:none;z-index:10;max-width:190px;line-height:1.6;box-shadow:0 2px 8px rgba(0,0,0,.1);font-family:Arial,sans-serif;"></div>
+      <p style="font-size:10px;color:#9CA3AF;text-align:center;margin-top:6px;font-family:Arial,sans-serif;">Sample data — hover dots for details</p>
+    </div>
   </div>
 </section>
 
@@ -378,5 +394,139 @@ footer a:hover { color: var(--white); }
   <p style="margin-top:6px;">&#169; 2026 TestScorePlotter.com &nbsp;&middot;&nbsp; Free tools for IEP teams</p>
 </footer>
 
+
+<script>
+(function(){
+  const BANDS=[{lo:-1,hi:1,f:'rgba(55,138,221,0.42)'},{lo:-2,hi:-1,f:'rgba(180,178,169,0.32)'},{lo:1,hi:2,f:'rgba(180,178,169,0.32)'},{lo:-3,hi:-2,f:'rgba(0,0,0,0)'},{lo:2,hi:3,f:'rgba(0,0,0,0)'},{lo:-4,hi:-3,f:'rgba(216,90,48,0.22)'},{lo:3,hi:4,f:'rgba(99,153,34,0.22)'}];
+  const CLS=[{lo:-4,hi:-2,l:'Extremely Low'},{lo:-2,hi:-1.33,l:'Borderline'},{lo:-1.33,hi:-0.67,l:'Low Average'},{lo:-0.67,hi:0.67,l:'Average'},{lo:0.67,hi:1.33,l:'High Average'},{lo:1.33,hi:2,l:'Superior'},{lo:2,hi:4,l:'Very Superior'}];
+  const SAMPLES=[
+    {lbl:'Full Scale IQ',        abbr:'FSIQ', shape:'circle',  z:(92-100)/15},
+    {lbl:'Verbal Comprehension', abbr:'VCI',  shape:'circle',  z:(88-100)/15},
+    {lbl:'Working Memory',       abbr:'WMI',  shape:'triUp',   z:(80-100)/15},
+    {lbl:'Processing Speed',     abbr:'PSI',  shape:'star',    z:(75-100)/15},
+    {lbl:'Word Reading',         abbr:'WR',   shape:'square',  z:(74-100)/15},
+    {lbl:'Reading Fluency',      abbr:'RF',   shape:'square',  z:(70-100)/15},
+    {lbl:'Math Calculation',     abbr:'MC',   shape:'triDown', z:(95-100)/15},
+    {lbl:'Written Expression',   abbr:'WE',   shape:'diamond', z:(76-100)/15},
+  ];
+  function nCDF(z){const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911,s=z<0?-1:1,x=Math.abs(z)/Math.SQRT2,t=1/(1+p*x);return 0.5*(1+s*(1-(((((a5*t+a4)*t+a3)*t+a2)*t+a1)*t)*Math.exp(-x*x)));}
+  function pdf(x){return Math.exp(-.5*x*x)/Math.sqrt(2*Math.PI);}
+  function iN(p){if(p<=0)return -4;if(p>=1)return 4;const c=[2.515517,0.802853,0.010328],d=[1.432788,0.189269,0.001308];function q(t){return t-(c[0]+c[1]*t+c[2]*t*t)/(1+d[0]*t+d[1]*t*t+d[2]*t*t*t);}return p<0.5?-q(Math.sqrt(-2*Math.log(p))):q(Math.sqrt(-2*Math.log(1-p)));}
+  function cls(z){return(CLS.find(b=>z>=b.lo&&z<b.hi)||{l:''}).l;}
+  function shp(ctx,s,cx,cy,r){
+    ctx.beginPath();
+    if(s==='circle')ctx.arc(cx,cy,r,0,Math.PI*2);
+    else if(s==='square')ctx.rect(cx-r*.95,cy-r*.95,r*1.9,r*1.9);
+    else if(s==='diamond'){ctx.moveTo(cx,cy-r*1.4);ctx.lineTo(cx+r*1.1,cy);ctx.lineTo(cx,cy+r*1.4);ctx.lineTo(cx-r*1.1,cy);ctx.closePath();}
+    else if(s==='triUp'){ctx.moveTo(cx,cy-r*1.3);ctx.lineTo(cx+r*1.2,cy+r);ctx.lineTo(cx-r*1.2,cy+r);ctx.closePath();}
+    else if(s==='triDown'){ctx.moveTo(cx,cy+r*1.3);ctx.lineTo(cx+r*1.2,cy-r);ctx.lineTo(cx-r*1.2,cy-r);ctx.closePath();}
+    else if(s==='star'){for(let k=0;k<10;k++){const a=-Math.PI/2+Math.PI*k/5,rad=k%2===0?r*1.3:r*0.55;k===0?ctx.moveTo(cx+rad*Math.cos(a),cy+rad*Math.sin(a)):ctx.lineTo(cx+rad*Math.cos(a),cy+rad*Math.sin(a));}ctx.closePath();}
+    ctx.fill();ctx.stroke();
+  }
+  function draw(){
+    const cv=document.getElementById('heroCv');
+    if(!cv)return;
+    const dpr=window.devicePixelRatio||1;
+    const W=cv.parentElement.clientWidth-32||500,H=300;
+    cv.style.width=W+'px';cv.style.height=H+'px';
+    cv.width=W*dpr;cv.height=H*dpr;
+    const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+    const ZN=-4,ZX=4,ST=400,DR=6,STEP=18;
+    const PAD={t:18,r:12,b:78,l:42};
+    const CW=W-PAD.l-PAD.r,CH=H-PAD.t-PAD.b,BL=PAD.t+CH;
+    function zx(z){return PAD.l+(z-ZN)/(ZX-ZN)*CW;}
+    function yy(y){return PAD.t+CH-(y/0.42)*CH;}
+    ctx.clearRect(0,0,W,H);
+    // Bands clipped to curve
+    BANDS.forEach(b=>{
+      if(b.f==='rgba(0,0,0,0)')return;
+      const lo=Math.max(b.lo,ZN),hi=Math.min(b.hi,ZX);
+      ctx.beginPath();ctx.moveTo(zx(lo),BL);
+      for(let i=0;i<=ST;i++){const z=ZN+(ZX-ZN)*i/ST;if(z>=lo&&z<=hi)ctx.lineTo(zx(z),yy(pdf(z)));}
+      ctx.lineTo(zx(hi),BL);ctx.closePath();ctx.fillStyle=b.f;ctx.fill();
+    });
+    // SD lines
+    [-3,-2,-1,0,1,2,3].forEach(sd=>{
+      const x=zx(sd);
+      ctx.strokeStyle=sd===0?'#185FA5':'rgba(0,0,0,.14)';
+      ctx.lineWidth=sd===0?1.5:0.8;ctx.setLineDash(sd===0?[]:[4,3]);
+      ctx.beginPath();ctx.moveTo(x,PAD.t);ctx.lineTo(x,BL);ctx.stroke();ctx.setLineDash([]);
+    });
+    // 12th percentile line
+    const z12=iN(0.12),x12=zx(z12);
+    ctx.strokeStyle='#000';ctx.lineWidth=1.5;ctx.setLineDash([6,3]);
+    ctx.beginPath();ctx.moveTo(x12,BL);ctx.lineTo(x12,PAD.t+18);ctx.stroke();ctx.setLineDash([]);
+    ctx.font='bold 8px Arial';ctx.fillStyle='#000';ctx.textAlign='left';
+    ctx.fillText('12th %ile',x12+3,PAD.t+14);
+    // Curve fill + line
+    ctx.beginPath();
+    for(let i=0;i<=ST;i++){const z=ZN+(ZX-ZN)*i/ST,x=zx(z),y=yy(pdf(z));i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+    ctx.lineTo(zx(ZX),BL);ctx.lineTo(zx(ZN),BL);ctx.closePath();
+    ctx.fillStyle='rgba(55,138,221,0.06)';ctx.fill();
+    ctx.beginPath();ctx.strokeStyle='#185FA5';ctx.lineWidth=2;ctx.setLineDash([]);
+    for(let i=0;i<=ST;i++){const z=ZN+(ZX-ZN)*i/ST,x=zx(z),y=yy(pdf(z));i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.stroke();
+    // Score scale rows
+    const tc='#999';
+    const ssV=[55,70,85,100,115,130,145];
+    const tV=[20,30,40,50,60,70,80];
+    const pM=[{z:-3,l:'<1'},{z:-2,l:'2'},{z:-1,l:'16'},{z:0,l:'50'},{z:1,l:'84'},{z:2,l:'98'},{z:3,l:'>99'}];
+    const rowH=13,startY=BL+14;
+    [{lb:'SS',items:ssV.map(v=>({px:zx((v-100)/15),t:v,b:[85,115].includes(v)}))},
+     {lb:'T',items:tV.map(v=>({px:zx((v-50)/10),t:v,b:false}))},
+     {lb:'%ile',items:pM.map(m=>({px:zx(m.z),t:m.l,b:false}))}
+    ].forEach((row,si)=>{
+      ctx.fillStyle=tc;ctx.textAlign='right';ctx.font='8px Arial';
+      ctx.fillText(row.lb,PAD.l-2,startY+si*rowH);
+      row.items.forEach(item=>{
+        if(item.px<PAD.l-2||item.px>W-PAD.r+2)return;
+        ctx.textAlign='center';
+        ctx.font=(item.b?'bold ':'')+'8px Arial';
+        ctx.fillStyle=tc;
+        ctx.fillText(item.t,item.px,startY+si*rowH);
+      });
+    });
+    // SD labels
+    [-3,-2,-1,0,1,2,3].forEach(sd=>{
+      ctx.font='7px Arial';ctx.textAlign='center';ctx.fillStyle='#bbb';
+      ctx.fillText(sd===0?'Mean':(sd>0?'+'+sd+' SD':sd+' SD'),zx(sd),startY+3*rowH+10);
+    });
+    // Stack and draw dots
+    const THRESH=0.18;
+    const used=new Array(SAMPLES.length).fill(false);const stacks=[];
+    SAMPLES.forEach((s,i)=>{if(used[i])return;const g=[s];used[i]=true;SAMPLES.forEach((s2,j)=>{if(!used[j]&&Math.abs(s.z-s2.z)<=THRESH){g.push(s2);used[j]=true;}});stacks.push(g);});
+    window._heroDots=[];
+    stacks.forEach(g=>{
+      const mx=g.reduce((a,s)=>a+zx(s.z),0)/g.length;
+      g.forEach((s,si)=>{
+        const cy=BL-DR-(si*STEP);
+        ctx.save();ctx.fillStyle='#222';ctx.strokeStyle='#fff';ctx.lineWidth=1.5;
+        shp(ctx,s.shape,mx,cy,DR);
+        ctx.restore();
+        window._heroDots.push({...s,cx:mx,cy});
+      });
+    });
+  }
+  function initHero(){
+    draw();
+    window.addEventListener('resize',draw);
+    const cv=document.getElementById('heroCv');
+    const tip=document.getElementById('heroTip');
+    if(!cv||!tip)return;
+    cv.addEventListener('mousemove',e=>{
+      const rect=cv.getBoundingClientRect(),mx=e.clientX-rect.left,my=e.clientY-rect.top;
+      const h=(window._heroDots||[]).find(d=>Math.sqrt((mx-d.cx)**2+(my-d.cy)**2)<=DR+5);
+      if(h){
+        tip.style.display='block';
+        tip.innerHTML='<b>'+h.abbr+'</b> '+h.lbl+'<br>'+(nCDF(h.z)*100).toFixed(1)+'th %ile — '+cls(h.z);
+        const W=cv.parentElement.clientWidth,tx=mx+14,ty=Math.max(my-8,0);
+        tip.style.left=(tx+200>W?mx-210:tx)+'px';tip.style.top=ty+'px';
+      } else tip.style.display='none';
+    });
+    cv.addEventListener('mouseleave',()=>tip.style.display='none');
+  }
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',initHero);}
+  else{setTimeout(initHero,100);}
+})();
+</script>
 </body>
 </html>
