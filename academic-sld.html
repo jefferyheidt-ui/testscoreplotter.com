@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Academic SLD Score Plotter</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,sans-serif;font-size:13px;color:#222;background:#fff;padding:12px;max-width:960px;margin:0 auto;}
+h1{font-size:15px;font-weight:600;margin-bottom:4px;}
+.subtitle{font-size:11px;color:#888;margin-bottom:8px;}
+.controls{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-bottom:8px;}
+button{background:#fff;border:1px solid #bbb;border-radius:5px;padding:5px 11px;font-size:12px;cursor:pointer;color:#222;}
+button:hover{background:#f0f0f0;}
+button.pri{background:#378ADD;color:#fff;border-color:#185FA5;}
+button.pri:hover{background:#185FA5;}
+label{font-size:12px;color:#555;display:flex;align-items:center;gap:4px;cursor:pointer;}
+.score-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;}
+.score-table th{padding:4px 7px;text-align:left;font-size:11px;font-weight:500;color:#666;border-bottom:1px solid #ddd;}
+.score-table td{padding:3px 7px;border-bottom:0.5px solid #eee;}
+.score-table tr:last-child td{border-bottom:none;}
+.score-table input{width:100%;background:transparent;border:none;outline:none;font-size:12px;color:#222;}
+.score-table select{background:#f5f5f5;border:0.5px solid #ccc;border-radius:4px;padding:2px 3px;font-size:11px;color:#222;}
+.del-btn{background:none;border:none;cursor:pointer;color:#aaa;font-size:15px;padding:0 2px;}
+.del-btn:hover{color:#333;}
+.leg-row{display:flex;flex-wrap:wrap;gap:7px;margin:4px 0 2px;}
+.dl-item{display:flex;align-items:center;gap:4px;font-size:11px;color:#444;}
+.bl-item{display:flex;align-items:center;gap:4px;font-size:11px;color:#555;}
+.bl-sw{width:20px;height:10px;border-radius:2px;}
+.sec{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.4px;margin:7px 0 2px;}
+.canvas-wrap{position:relative;width:100%;}
+.tip{position:absolute;background:#fff;border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:11px;color:#222;pointer-events:none;display:none;z-index:10;max-width:210px;line-height:1.6;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+.sld-note{font-size:11px;color:#BA7517;background:#fdf6e8;border:1px solid #f0d080;border-radius:5px;padding:5px 10px;margin-bottom:8px;display:inline-block;}
+@media print{.controls,.no-print{display:none!important;}}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+<nav style="position:sticky;top:0;z-index:100;background:#fff;border-bottom:1px solid #e5e7eb;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:54px;font-family:Nunito,sans-serif;"><a href="../index.html" style="font-size:15px;font-weight:800;color:#185FA5;text-decoration:none;">Test Score <span style="color:#1A9E75;">Plotter</span></a><div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;"><a href="../index.html" style="font-size:12px;font-weight:600;color:#4B5563;text-decoration:none;">&#x2190; Home</a><a href="multidisciplinary.html" style="font-size:12px;font-weight:600;color:#4B5563;text-decoration:none;">Multidisciplinary</a><a href="academic-sld.html" style="font-size:12px;font-weight:600;color:#4B5563;text-decoration:none;">Academic / SLD</a><a href="speech-language.html" style="font-size:12px;font-weight:600;color:#4B5563;text-decoration:none;">Speech-Language</a><a href="wisc-v.html" style="font-size:12px;font-weight:600;color:#4B5563;text-decoration:none;">WISC-V</a></div></nav>
+<h1>Academic Achievement &amp; SLD Score Plotter</h1>
+<p class="subtitle">Scores plotted by area of potential Specific Learning Disability (SLD)</p>
+<div class="sld-note no-print">&#9642; Dashed line marks the <b>12th percentile</b> — common SLD eligibility threshold</div>
+
+<div class="controls no-print">
+  <button class="pri" onclick="addRow()">+ Add score</button>
+  <button onclick="redraw()">&#8635; Redraw</button>
+  <label><input type="checkbox" id="chkSD" checked onchange="redraw()"> SD lines</label>
+  <label><input type="checkbox" id="chkLbl" checked onchange="redraw()"> Labels</label>
+  <label><input type="checkbox" id="chkSc" checked onchange="redraw()"> Score scales</label>
+  <label><input type="checkbox" id="pct12" checked onchange="redraw()"> 12th %ile (SLD)</label>
+  <button onclick="window.print()" style="margin-left:auto;">&#128438; Print</button>
+</div>
+
+<div class="canvas-wrap">
+  <canvas id="cv"></canvas>
+  <div class="tip" id="tip"></div>
+</div>
+
+<div class="sec">SLD domains</div>
+<div class="leg-row" id="dLeg"></div>
+<div class="sec">Score bands</div>
+<div class="leg-row" id="bLeg"></div>
+
+<div class="sec no-print">Score entry — hover dots for details</div>
+<table class="score-table no-print">
+  <thead><tr><th>Label</th><th>Abbr</th><th>SLD Area</th><th>Type</th><th>Value</th><th>%ile</th><th></th></tr></thead>
+  <tbody id="tb"></tbody>
+</table>
+
+<script>
+const TYPES={'Standard (SS)':{mean:100,sd:15},'IQ':{mean:100,sd:15},'Scaled':{mean:10,sd:3},'T-score':{mean:50,sd:10},'Percentile':null,'Stanine':{mean:5,sd:2},'NCE':{mean:50,sd:21.06}};
+
+// SLD-specific domains — same dark color, maximally distinct shapes for B&W printing
+const DOM={
+  'Basic Reading':          {c:'#222', s:'circle'   },
+  'Reading Fluency':        {c:'#222', s:'square'   },
+  'Total Reading':          {c:'#222', s:'diamond'  },
+  'Math Calculation':       {c:'#222', s:'triUp'    },
+  'Math Problem Solving':   {c:'#222', s:'triDown'  },
+  'Total Math':             {c:'#222', s:'cross'    },
+  'Written Expression':     {c:'#222', s:'star'     },
+};
+
+const BANDS=[{lo:-1,hi:1,f:'rgba(55,138,221,0.42)'},{lo:-2,hi:-1,f:'rgba(180,178,169,0.32)'},{lo:1,hi:2,f:'rgba(180,178,169,0.32)'},{lo:-3,hi:-2,f:'rgba(0,0,0,0)'},{lo:2,hi:3,f:'rgba(0,0,0,0)'},{lo:-4,hi:-3,f:'rgba(216,90,48,0.22)'},{lo:3,hi:4,f:'rgba(99,153,34,0.22)'}];
+const CLS=[{lo:-4,hi:-2,l:'Extremely Low'},{lo:-2,hi:-1.33,l:'Borderline'},{lo:-1.33,hi:-0.67,l:'Low Average'},{lo:-0.67,hi:0.67,l:'Average'},{lo:0.67,hi:1.33,l:'High Average'},{lo:1.33,hi:2,l:'Superior'},{lo:2,hi:4,l:'Very Superior'}];
+
+// Only the 12th percentile SLD eligibility line
+const PCTM=[{p:12,lbl:'12th %ile — SLD threshold',abbr:'12th',id:'pct12',c:'#000',pos:'above'}];
+
+const ZN=-4,ZX=4,ST=400,DR=7,SSTEP=17,THRESH=0.18;
+let rows=[],rid=0,dots=[];
+
+function nCDF(z){const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911,s=z<0?-1:1,x=Math.abs(z)/Math.SQRT2,t=1/(1+p*x);return 0.5*(1+s*(1-(((((a5*t+a4)*t+a3)*t+a2)*t+a1)*t)*Math.exp(-x*x)));}
+function iN(p){if(p<=0)return -4;if(p>=1)return 4;const c=[2.515517,0.802853,0.010328],d=[1.432788,0.189269,0.001308];function q(t){return t-(c[0]+c[1]*t+c[2]*t*t)/(1+d[0]*t+d[1]*t*t+d[2]*t*t*t);}return p<0.5?-q(Math.sqrt(-2*Math.log(p))):q(Math.sqrt(-2*Math.log(1-p)));}
+function pdf(x){return Math.exp(-.5*x*x)/Math.sqrt(2*Math.PI);}
+function toZ(type,val){if(type==='Percentile'){const p=parseFloat(val);return(p>0&&p<100)?iN(p/100):null;}const t=TYPES[type];if(!t)return null;const v=parseFloat(val);return isNaN(v)?null:(v-t.mean)/t.sd;}
+function pct(z){return nCDF(z)*100;}
+function cls(z){return(CLS.find(b=>z>=b.lo&&z<b.hi)||{l:''}).l;}
+function abb(s){return(s||'?').split(/\s+/).map(w=>w[0]||'').join('').toUpperCase().slice(0,4)||'?';}
+function addRow(l,a,d,t,v){rows.push({id:rid++,l:l||'',a:a||'',d:d||'Basic Reading',t:t||'Standard (SS)',v:v||''});renderTb();}
+function delRow(id){rows=rows.filter(r=>r.id!==id);renderTb();redraw();}
+
+function renderTb(){
+  const tb=document.getElementById('tb');tb.innerHTML='';
+  rows.forEach((r,i)=>{
+    const z=toZ(r.t,r.v),pc=z!==null&&r.v!==''?pct(z).toFixed(1)+'%':'—';
+    const dc=DOM[r.d]?DOM[r.d].c:'#888';
+    tb.innerHTML+=`<tr>
+      <td><input value="${r.l}" placeholder="e.g. Word Reading" onchange="rows[${i}].l=this.value;aF(${i})"/></td>
+      <td><input value="${r.a}" placeholder="auto" id="ab${r.id}" style="width:46px;" onchange="rows[${i}].a=this.value"/></td>
+      <td><select onchange="rows[${i}].d=this.value;renderTb()">${Object.keys(DOM).map(d=>`<option style="color:${DOM[d].c}"${d===r.d?' selected':''}>${d}</option>`).join('')}</select></td>
+      <td><select onchange="rows[${i}].t=this.value;renderTb()">${Object.keys(TYPES).map(t=>`<option${t===r.t?' selected':''}>${t}</option>`).join('')}</select></td>
+      <td><input type="number" value="${r.v}" placeholder="Score" style="width:54px;" onchange="rows[${i}].v=this.value;renderTb()"/></td>
+      <td style="color:#888;font-size:11px;">${pc}</td>
+      <td><button class="del-btn" onclick="delRow(${r.id})">×</button></td>
+    </tr>`;
+  });
+}
+function aF(i){if(!rows[i].a){rows[i].a=abb(rows[i].l);const el=document.getElementById('ab'+rows[i].id);if(el)el.value=rows[i].a;}}
+
+function shp(ctx,s,cx,cy,r,color){
+  ctx.save();ctx.fillStyle=color;ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();
+  if(s==='circle')ctx.arc(cx,cy,r,0,Math.PI*2);
+  else if(s==='square'){ctx.rect(cx-r*0.95,cy-r*0.95,r*1.9,r*1.9);}
+  else if(s==='diamond'){ctx.moveTo(cx,cy-r*1.4);ctx.lineTo(cx+r*1.1,cy);ctx.lineTo(cx,cy+r*1.4);ctx.lineTo(cx-r*1.1,cy);ctx.closePath();}
+  else if(s==='triUp'){ctx.moveTo(cx,cy-r*1.3);ctx.lineTo(cx+r*1.2,cy+r*1.0);ctx.lineTo(cx-r*1.2,cy+r*1.0);ctx.closePath();}
+  else if(s==='triDown'){ctx.moveTo(cx,cy+r*1.3);ctx.lineTo(cx+r*1.2,cy-r*1.0);ctx.lineTo(cx-r*1.2,cy-r*1.0);ctx.closePath();}
+  else if(s==='star'){
+    // 5-pointed star
+    for(let k=0;k<10;k++){
+      const a=-Math.PI/2+Math.PI*k/5;
+      const rad=k%2===0?r*1.3:r*0.55;
+      k===0?ctx.moveTo(cx+rad*Math.cos(a),cy+rad*Math.sin(a)):ctx.lineTo(cx+rad*Math.cos(a),cy+rad*Math.sin(a));
+    }ctx.closePath();
+  }
+  else if(s==='cross'){const t=r*.4;ctx.rect(cx-t,cy-r*1.2,t*2,r*2.4);ctx.rect(cx-r*1.2,cy-t,r*2.4,t*2);}
+  else if(s==='pent'){for(let k=0;k<5;k++){const a=-Math.PI/2+2*Math.PI*k/5;k?ctx.lineTo(cx+r*Math.cos(a),cy+r*Math.sin(a)):ctx.moveTo(cx+r*Math.cos(a),cy+r*Math.sin(a));}ctx.closePath();}
+  else if(s==='hex'){for(let k=0;k<6;k++){const a=Math.PI/6+2*Math.PI*k/6;k?ctx.lineTo(cx+r*Math.cos(a),cy+r*Math.sin(a)):ctx.moveTo(cx+r*Math.cos(a),cy+r*Math.sin(a));}ctx.closePath();}
+  ctx.fill();ctx.stroke();ctx.restore();
+}
+
+function redraw(){
+  const cv=document.getElementById('cv');
+  const dpr=window.devicePixelRatio||1;
+  const W=Math.max(cv.parentElement.clientWidth||600,400),H=440;
+  cv.style.width=W+'px';cv.style.height=H+'px';
+  cv.width=W*dpr;cv.height=H*dpr;
+  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  const sSD=document.getElementById('chkSD').checked;
+  const sLbl=document.getElementById('chkLbl').checked;
+  const sSc=document.getElementById('chkSc').checked;
+  const tc='#555';
+  const PAD={t:sLbl?32:16,r:16,b:sSc?100:30,l:50};
+  const CW=W-PAD.l-PAD.r,CH=H-PAD.t-PAD.b,BL=PAD.t+CH;
+  function zx(z){return PAD.l+(z-ZN)/(ZX-ZN)*CW;}
+  function yy(y){return PAD.t+CH-(y/0.42)*CH;}
+  ctx.clearRect(0,0,W,H);
+
+  // Curve-clipped bands
+  BANDS.forEach(b=>{
+    if(b.f==='rgba(0,0,0,0)')return;
+    const lo=Math.max(b.lo,ZN),hi=Math.min(b.hi,ZX);
+    ctx.beginPath();
+    ctx.moveTo(zx(lo),BL);
+    for(let i=0;i<=ST;i++){const z=ZN+(ZX-ZN)*i/ST;if(z>=lo&&z<=hi)ctx.lineTo(zx(z),yy(pdf(z)));}
+    ctx.lineTo(zx(hi),BL);
+    ctx.closePath();
+    ctx.fillStyle=b.f;ctx.fill();
+  });
+
+  // SD lines
+  if(sSD){[-3,-2,-1,0,1,2,3].forEach(sd=>{const x=zx(sd);ctx.strokeStyle=sd===0?'#185FA5':'rgba(0,0,0,.18)';ctx.lineWidth=sd===0?2:1;ctx.setLineDash(sd===0?[]:[4,3]);ctx.beginPath();ctx.moveTo(x,PAD.t);ctx.lineTo(x,BL);ctx.stroke();ctx.setLineDash([]);});}
+
+  // Percentile marker — full height, abbrev above, label below baseline
+  PCTM.forEach(m=>{
+    const chk=document.getElementById(m.id);
+    if(!chk||!chk.checked)return;
+    const z=m.z!==undefined?m.z:iN(m.p/100),x=zx(z);
+    const lineTop=m.id==='ss70'?PAD.t+CH*0.45:PAD.t+20;
+    ctx.strokeStyle=m.c;ctx.lineWidth=2;ctx.setLineDash([6,3]);
+    ctx.beginPath();ctx.moveTo(x,BL);ctx.lineTo(x,lineTop);ctx.stroke();
+    ctx.setLineDash([]);
+    if(sLbl){
+      ctx.font='bold 9px Arial';ctx.fillStyle=m.c;
+      if(m.id==='ss70'){
+        ctx.textAlign='center';ctx.fillText(m.lbl,x,lineTop-4);
+      } else if(m.id==='pct7'){
+        ctx.textAlign='right';ctx.fillText(m.lbl,x-4,lineTop+10);
+      } else if(m.id==='pct12'){
+        ctx.textAlign='left';ctx.fillText(m.lbl,x+4,lineTop+10);
+      } else {
+        ctx.textAlign='center';ctx.fillText(m.lbl,x,lineTop-4);
+      }
+    }
+  });
+
+  // Curve fill
+  ctx.beginPath();
+  for(let i=0;i<=ST;i++){const z=ZN+(ZX-ZN)*i/ST,x=zx(z),y=yy(pdf(z));i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+  ctx.lineTo(zx(ZX),BL);ctx.lineTo(zx(ZN),BL);ctx.closePath();
+  ctx.fillStyle='rgba(55,138,221,0.06)';ctx.fill();
+
+  // Curve line
+  ctx.beginPath();ctx.strokeStyle='#185FA5';ctx.lineWidth=2;ctx.setLineDash([]);
+  for(let i=0;i<=ST;i++){const z=ZN+(ZX-ZN)*i/ST,x=zx(z),y=yy(pdf(z));i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.stroke();
+
+  // Labels
+  if(sLbl){
+    ctx.font='500 9px Arial';ctx.textAlign='center';ctx.fillStyle='#185FA5';
+    ctx.fillText('Average',zx(0),PAD.t-10);
+  }
+
+  // SD axis labels
+  [-3,-2,-1,0,1,2,3].forEach(sd=>{ctx.font='9px Arial';ctx.textAlign='center';ctx.fillStyle=tc;ctx.fillText(sd===0?'Mean':(sd>0?'+'+sd+' SD':sd+' SD'),zx(sd),BL+26);});
+
+  // Score scales
+  if(sSc){
+    const rH=12,sY=BL+40;
+    const ssV=[55,65,70,75,80,85,90,95,100,105,110,115,120,125,130,135,140,145];
+    const scV=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19];
+    const tV=[20,25,30,35,40,45,50,55,60,65,70,75,80];
+    const pM=[{z:-3,l:'<1'},{z:-2,l:'2'},{z:-1,l:'16'},{z:0,l:'50'},{z:1,l:'84'},{z:2,l:'98'},{z:3,l:'>99'}];
+    [{lb:'SS/IQ',it:ssV.map(v=>({px:zx((v-100)/15),t:v,b:[55,85,115,145].includes(v)}))},
+     {lb:'Scaled',it:scV.map(v=>({px:zx((v-10)/3),t:v,b:false}))},
+     {lb:'T',it:tV.map(v=>({px:zx((v-50)/10),t:v,b:false}))},
+     {lb:'%ile',it:pM.map(m=>({px:zx(m.z),t:m.l,b:false}))}
+    ].forEach((row,si)=>{
+      ctx.fillStyle=tc;ctx.textAlign='right';ctx.font='8px Arial';ctx.fillText(row.lb,PAD.l-3,sY+si*rH);
+      row.it.forEach(item=>{if(item.px<PAD.l-4||item.px>W-PAD.r+4)return;ctx.textAlign='center';ctx.font=item.b?'bold 8px Arial':'8px Arial';ctx.fillText(item.t,item.px,sY+si*rH);});
+    });
+  }
+
+  // Score dots with stacking
+  const scored=rows.map(r=>{
+    const z=toZ(r.t,r.v);if(z===null||r.v==='')return null;
+    const cz=Math.max(ZN+.05,Math.min(ZX-.05,z));
+    const d=DOM[r.d]||DOM['Basic Reading'];
+    return{z:cz,px:zx(cz),c:d.c,s:d.s,a:r.a||abb(r.l),l:r.l,d:r.d,t:r.t,v:r.v,p:pct(cz),cl:cls(cz)};
+  }).filter(Boolean);
+
+  const used=new Array(scored.length).fill(false);const stacks=[];
+  scored.forEach((s,i)=>{if(used[i])return;const g=[s];used[i]=true;scored.forEach((s2,j)=>{if(!used[j]&&Math.abs(s.z-s2.z)<=THRESH){g.push(s2);used[j]=true;}});stacks.push(g);});
+  dots=[];
+  stacks.forEach(g=>{
+    const mx=g.reduce((a,s)=>a+s.px,0)/g.length;
+    g.forEach((s,si)=>{const cy=BL-DR-(si*SSTEP);shp(ctx,s.s,mx,cy,DR,s.c);dots.push({...s,cx:mx,cy});});
+  });
+  buildLegs();
+}
+
+const cv=document.getElementById('cv'),tip=document.getElementById('tip');
+cv.addEventListener('mousemove',e=>{
+  const rect=cv.getBoundingClientRect(),mx=e.clientX-rect.left,my=e.clientY-rect.top;
+  const h=dots.find(d=>Math.sqrt((mx-d.cx)**2+(my-d.cy)**2)<=DR+5);
+  if(h){
+    tip.style.display='block';
+    tip.innerHTML=`<b style="color:${h.c}">${h.a}</b> ${h.l}<br><span style="color:#888">${h.d}</span><br>${h.t}: <b>${h.v}</b><br>${h.p.toFixed(1)}th %ile — ${h.cl}`;
+    const W2=cv.parentElement.clientWidth,tx=mx+14,ty=Math.max(my-8,0);
+    tip.style.left=(tx+210>W2?mx-218:tx)+'px';tip.style.top=ty+'px';
+  } else tip.style.display='none';
+});
+cv.addEventListener('mouseleave',()=>tip.style.display='none');
+
+function buildLegs(){
+  const dl=document.getElementById('dLeg');dl.innerHTML='';
+  Object.entries(DOM).forEach(([n,d])=>{const c=document.createElement('canvas');c.width=16;c.height=16;shp(c.getContext('2d'),d.s,8,8,6,d.c);dl.innerHTML+=`<div class="dl-item"><img src="${c.toDataURL()}" width="14" height="14"><span>${n}</span></div>`;});
+  const bl=document.getElementById('bLeg');bl.innerHTML='';
+  [{f:'rgba(55,138,221,0.42)',b:'#378ADD',l:'Average (±1 SD)'},{f:'rgba(180,178,169,0.32)',b:'#888780',l:'Low/High Avg (±2 SD)'},{f:'rgba(0,0,0,0)',b:'#ccc',l:'Well Below/Above (±3 SD)'},{f:'rgba(216,90,48,0.22)',b:'#D85A30',l:'Extremely Low'},{f:'rgba(99,153,34,0.22)',b:'#639922',l:'Extremely High'}]
+  .forEach(b=>{bl.innerHTML+=`<div class="bl-item"><div class="bl-sw" style="background:${b.f};border:1px solid ${b.b}55;"></div><span>${b.l}</span></div>`;});
+  PCTM.forEach(m=>{bl.innerHTML+=`<div class="bl-item"><div style="width:20px;height:2px;border-top:2.5px dashed ${m.c};margin-top:4px;"></div><span style="color:#444">${m.lbl}</span></div>`;});
+}
+
+// Sample SLD data
+addRow('Word Reading',         'WR',  'Basic Reading',        'Standard (SS)', '74');
+addRow('Pseudoword Decoding',  'PWD', 'Basic Reading',        'Standard (SS)', '71');
+addRow('Reading Fluency',      'RFl', 'Reading Fluency',      'Standard (SS)', '68');
+addRow('Oral Reading Fluency', 'ORF', 'Reading Fluency',      'Standard (SS)', '72');
+addRow('Total Reading',        'TR',  'Total Reading',        'Standard (SS)', '70');
+addRow('Math Calculation',     'MC',  'Math Calculation',     'Standard (SS)', '95');
+addRow('Numerical Operations', 'NO',  'Math Calculation',     'Standard (SS)', '91');
+addRow('Math Reasoning',       'MR',  'Math Problem Solving', 'Standard (SS)', '88');
+addRow('Math Problem Solving', 'MPS', 'Math Problem Solving', 'Standard (SS)', '84');
+addRow('Total Math',           'TM',  'Total Math',           'Standard (SS)', '92');
+addRow('Written Expression',   'WE',  'Written Expression',   'Standard (SS)', '76');
+addRow('Spelling',             'SP',  'Written Expression',   'Standard (SS)', '73');
+redraw();
+window.addEventListener('resize',redraw);
+</script>
+</body>
+</html>
