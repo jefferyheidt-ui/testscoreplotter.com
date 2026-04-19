@@ -47,6 +47,7 @@ label{font-size:12px;color:#555;display:flex;align-items:center;gap:4px;cursor:p
   <label><input type="checkbox" id="chkSD" checked onchange="redraw()"> SD lines</label>
   <label><input type="checkbox" id="chkLbl" checked onchange="redraw()"> Labels</label>
   <label><input type="checkbox" id="chkSc" checked onchange="redraw()"> Score scales</label>
+  <label><input type="checkbox" id="chkAbbr" onchange="redraw()"> Dot labels</label>
   <label><input type="checkbox" id="pct12" checked onchange="redraw()"> 12th %ile (SLD)</label>
   <button onclick="window.print()" style="margin-left:auto;">&#128438; Print</button>
 </div>
@@ -150,6 +151,7 @@ function redraw(){
   const sSD=document.getElementById('chkSD').checked;
   const sLbl=document.getElementById('chkLbl').checked;
   const sSc=document.getElementById('chkSc').checked;
+  const sAbbr=document.getElementById('chkAbbr').checked;
   const tc='#555';
   const PAD={t:sLbl?32:16,r:16,b:sSc?100:30,l:50};
   const CW=W-PAD.l-PAD.r,CH=H-PAD.t-PAD.b,BL=PAD.t+CH;
@@ -244,7 +246,19 @@ function redraw(){
   dots=[];
   stacks.forEach(g=>{
     const mx=g.reduce((a,s)=>a+s.px,0)/g.length;
-    g.forEach((s,si)=>{const cy=BL-DR-(si*SSTEP);shp(ctx,s.s,mx,cy,DR,s.c);dots.push({...s,cx:mx,cy});});
+    g.forEach((s,si)=>{
+      const cy=BL-DR-(si*SSTEP);
+      shp(ctx,s.s,mx,cy,DR,s.c);
+      if(sAbbr){
+        ctx.save();
+        ctx.font='bold 8px Arial';
+        ctx.fillStyle='#222';
+        ctx.textAlign='center';
+        ctx.fillText(s.a||abb(s.l), mx, cy-DR-2);
+        ctx.restore();
+      }
+      dots.push({...s,cx:mx,cy});
+    });
   });
   buildLegs();
 }
